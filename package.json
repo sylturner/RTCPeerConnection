@@ -17,8 +17,8 @@
   "license": "MIT",
   "dependencies": {
     "wildemitter": "1.x",
-    "webrtcsupport": "0.7.x",
-    "traceablepeerconnection": "0.2.x",
+    "webrtcsupport": "git://github.com/sylturner/webrtcsupport.git",
+    "traceablepeerconnection": "git://github.com/sylturner/traceablepeerconnection.git",
     "sdp-jingle-json": "1.x",
     "underscore": "1.x"
   },
