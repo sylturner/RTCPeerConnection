@@ -15,8 +15,8 @@ function PeerConnection(config, constraints) {
 
     this.pc = new peerconn(config, constraints);
 
-    this.getLocalStreams = this.pc.getLocalStreams.bind(this.pc);
-    this.getRemoteStreams = this.pc.getRemoteStreams.bind(this.pc);
+    this.getLocalStreams = this.pc.getLocalStreams;
+    this.getRemoteStreams = this.pc.getRemoteStreams;
     this.addStream = this.pc.addStream.bind(this.pc);
     this.removeStream = this.pc.removeStream.bind(this.pc);
 
