@@ -3605,6 +3605,18 @@ function PeerConnection(config, constraints) {
     this.hadRemoteStunCandidate = false;
     this.hadLocalRelayCandidate = false;
     this.hadRemoteRelayCandidate = false;
+
+    this.hadLocalIPv6Candidate = false;
+    this.hadRemoteIPv6Candidate = false;
+
+    // keeping references for all our data channels
+    // so they dont get garbage collected
+    // can be removed once the following bugs have been fixed
+    // https://crbug.com/405545 
+    // https://bugzilla.mozilla.org/show_bug.cgi?id=964092
+    // to be filed for opera
+    this._remoteDataChannels = [];
+    this._localDataChannels = [];
 }
 
 util.inherits(PeerConnection, WildEmitter);
@@ -3661,9 +3673,11 @@ PeerConnection.prototype.processIce = function (update, cb) {
                 );
                 if (candidate.type === 'srflx') {
                     self.hadRemoteStunCandidate = true;
-                }
-                else if (candidate.type === 'relay') {
+                } else if (candidate.type === 'relay') {
                     self.hadRemoteRelayCandidate = true;
+                }
+                if (candidate.ip.indexOf(':') != -1) {
+                    self.hadRemoteIPv6Candidate = true;
                 }
             });
         });
@@ -3674,11 +3688,14 @@ PeerConnection.prototype.processIce = function (update, cb) {
         }
 
         self.pc.addIceCandidate(new webrtc.IceCandidate(update.candidate));
-        if (update.candidate.candidate.indexOf('typ srflx') !== -1) {
+        var cand = SJJ.toCandidateJSON(update.candidate.candidate);
+        if (cand.type == 'srflx') {
             self.hadRemoteStunCandidate = true;
-        }
-        else if (update.candidate.candidate.indexOf('typ relay') !== -1) {
+        } else if (cand.type == 'relay') {
             self.hadRemoteRelayCandidate = true;
+        }
+        if (cand.ip.indexOf(':') != -1) {
+            self.hadRemoteIPv6Candidate = true;
         }
     }
     cb();
@@ -3816,6 +3833,10 @@ PeerConnection.prototype.handleAnswer = function (answer, cb) {
 // Close the peer connection
 PeerConnection.prototype.close = function () {
     this.pc.close();
+
+    this._localDataChannels = [];
+    this._remoteDataChannels = [];
+
     this.emit('close');
 };
 
@@ -3868,6 +3889,7 @@ PeerConnection.prototype._onIce = function (event) {
             candidate: event.candidate
         };
 
+        var cand = SJJ.toCandidateJSON(ice.candidate);
         if (self.config.useJingle) {
             if (!ice.sdpMid) { // firefox doesn't set this
                 ice.sdpMid = self.localDescription.contents[ice.sdpMLineIndex].name;
@@ -3893,17 +3915,19 @@ PeerConnection.prototype._onIce = function (event) {
                         ufrag: self.config.ice[ice.sdpMid].ufrag,
                         pwd: self.config.ice[ice.sdpMid].pwd,
                         candidates: [
-                            SJJ.toCandidateJSON(ice.candidate)
+                            cand
                         ]
                     }
                 }]
             };
         }
-        if (ice.candidate.indexOf('typ srflx') !== -1) {
+        if (cand.type === 'srflx') {
             this.hadLocalStunCandidate = true;
-        }
-        else if (ice.candidate.indexOf('typ relay') !== -1) {
+        } else if (cand.type == 'relay') {
             this.hadLocalRelayCandidate = true;
+        }
+        if (cand.ip.indexOf(':') != -1) {
+            self.hadLocalIPv6Candidate = true;
         }
 
         this.emit('ice', expandedCandidate);
@@ -3915,7 +3939,11 @@ PeerConnection.prototype._onIce = function (event) {
 // Internal method for processing a new data channel being added by the
 // other peer.
 PeerConnection.prototype._onDataChannel = function (event) {
-    this.emit('addChannel', event.channel);
+    // make sure we keep a reference so this doesn't get garbage collected
+    var channel = event.channel;
+    this._remoteDataChannels.push(channel);
+
+    this.emit('addChannel', channel);
 };
 
 // Internal handling of adding stream
@@ -3928,6 +3956,10 @@ PeerConnection.prototype._onAddStream = function (event) {
 // http://dev.w3.org/2011/webrtc/editor/webrtc.html#idl-def-RTCDataChannelInit
 PeerConnection.prototype.createDataChannel = function (name, opts) {
     var channel = this.pc.createDataChannel(name, opts);
+
+    // make sure we keep a reference so this doesn't get garbage collected
+    this._localDataChannels.push(channel);
+
     return channel;
 };
 
