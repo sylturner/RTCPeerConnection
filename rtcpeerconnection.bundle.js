@@ -3347,8 +3347,12 @@ function PeerConnection(config, constraints) {
     // https://crbug.com/405545 
     // https://bugzilla.mozilla.org/show_bug.cgi?id=964092
     // to be filed for opera
-    this._remoteDataChannels = [];
-    this._localDataChannels = [];
+    // ========================
+    // this is crashing safari,
+    // so i'm removing for now
+    // ========================
+    //this._remoteDataChannels = [];
+    //this._localDataChannels = [];
 }
 
 util.inherits(PeerConnection, WildEmitter);
@@ -3566,8 +3570,8 @@ PeerConnection.prototype.handleAnswer = function (answer, cb) {
 PeerConnection.prototype.close = function () {
     this.pc.close();
 
-    this._localDataChannels = [];
-    this._remoteDataChannels = [];
+    //this._localDataChannels = [];
+    //this._remoteDataChannels = [];
 
     this.emit('close');
 };
@@ -3673,7 +3677,7 @@ PeerConnection.prototype._onIce = function (event) {
 PeerConnection.prototype._onDataChannel = function (event) {
     // make sure we keep a reference so this doesn't get garbage collected
     var channel = event.channel;
-    this._remoteDataChannels.push(channel);
+    //this._remoteDataChannels.push(channel);
 
     this.emit('addChannel', channel);
 };
@@ -3690,7 +3694,7 @@ PeerConnection.prototype.createDataChannel = function (name, opts) {
     var channel = this.pc.createDataChannel(name, opts);
 
     // make sure we keep a reference so this doesn't get garbage collected
-    this._localDataChannels.push(channel);
+    //this._localDataChannels.push(channel);
 
     return channel;
 };
